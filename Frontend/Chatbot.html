@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pink bot</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <style>
+    /* CSS Variables for theme consistency */
+    :root {
+      --primary-color: #2563eb;
+      --secondary-color: #dbeafe;
+      --bg-light: #dbeafe;
+      --bg-dark: #0f172a;
+      --text-light: #333;
+      --text-dark: #f9fafb;
+      --bot-bg: #4f46e5;
+      --user-bg: #3b82f6;
+      --header-footer-bg: #2563eb;
+      --input-bg-light: #f9fafb;
+      --input-bg-dark: #1e293b;
+      --border-color-light: #ddd;
+      --border-color-dark: #4b5563;
+    }
+    /* Global Styles */
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      background-color: var(--bg-light);
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text-light);
+      transition: background-color 0.5s, color 0.5s;
+    }
+    body.dark-mode {
+      background-color: var(--bg-dark);
+      color: var(--text-dark);
+    }
+    /* Focus Styles for Accessibility */
+    button:focus, input:focus {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+    /* Header Styles */
+    header.header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 10px 20px;
+      background-color: var(--header-footer-bg);
+      color: white;
+      font-weight: bold;
+      position: fixed;
+      top: 0;
+      z-index: 10;
+    }
+    .action-buttons button {
+      margin-left: 10px;
+      padding: 8px 15px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.3s, background-color 0.3s;
+      background-color: white;
+      color: var(--primary-color);
+    }
+    .action-buttons button:hover {
+      transform: scale(1.05);
+      background-color: var(--secondary-color);
+    }
+    /* Chat Container */
+    .chat-container {
+      margin-top: 70px;
+      margin-bottom: 50px;
+      width: 90%;
+      max-width: 800px;
+      height: calc(100vh - 120px);
+      display: flex;
+      flex-direction: column;
+      background: white;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      transition: background-color 0.5s;
+    }
+    body.dark-mode .chat-container {
+      background-color: #1e293b;
+    }
+    .chat-messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background-color: #f0f9ff;
+      transition: background-color 0.5s;
+    }
+    body.dark-mode .chat-messages {
+      background-color: #334155;
+    }
+    .message {
+      max-width: 70%;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      word-wrap: break-word;
+      opacity: 0;
+      animation: fadeIn 0.5s forwards;
+      position: relative;
+    }
+    .bot {
+      background-color: var(--bot-bg);
+      color: white;
+      align-self: flex-start;
+    }
+    .user {
+      background-color: var(--user-bg);
+      color: white;
+      align-self: flex-end;
+    }
+    .timestamp {
+      display: block;
+      font-size: 0.7em;
+      color: rgba(255,255,255,0.7);
+      margin-top: 5px;
+      text-align: right;
+    }
+    .typing {
+      font-style: italic;
+      opacity: 0.7;
+    }
+    .typing::after {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-left: 5px;
+      background-color: currentColor;
+      border-radius: 50%;
+      animation: blink 1.4s infinite both;
+    }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0; }
+      40% { opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Input Container */
+    .input-container {
+      display: flex;
+      padding: 15px;
+      border-top: 1px solid var(--border-color-light);
+      background-color: var(--input-bg-light);
+      transition: background-color 0.5s;
+    }
+    body.dark-mode .input-container {
+      background-color: var(--input-bg-dark);
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--border-color-light);
+      border-radius: 25px;
+      margin-right: 10px;
+      color: #000;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 5px rgba(37,99,235,0.5);
+    }
+    body.dark-mode input[type="text"] {
+      background-color: #334155;
+      color: var(--text-dark);
+      border-color: var(--border-color-dark);
+    }
+    button {
+      padding: 10px 20px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+    button:hover {
+      opacity: 0.8;
+    }
+    /* Footer Styles */
+    footer {
+      width: 100%;
+      padding: 10px 20px;
+      background-color: var(--header-footer-bg);
+      color: white;
+      text-align: center;
+      position: fixed;
+      bottom: 0;
+      z-index: 10;
+    }
+    footer a {
+      color: #ffd700;
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+    /* Interactive Robot Styles */
+    .robot-container {
+      position: absolute;
+      right: 20px;
+      bottom: 80px;
+      width: 120px;
+      text-align: center;
+      animation: float 3s ease-in-out infinite;
+      transition: transform 0.3s;
+      z-index: 2;
+      cursor: pointer;
+    }
+    .robot-container:hover {
+      transform: scale(1.1);
+    }
+    .robot-image {
+      width: 80px;
+      margin: auto;
+    }
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+    .speech-bubble {
+      background-color: white;
+      padding: 8px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      margin-top: 5px;
+      font-size: 12px;
+      color: #333;
+    }
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .chat-container {
+        width: 100%;
+        height: calc(100vh - 120px);
+        border-radius: 0;
+      }
+    }
+    /* Hide robot on small screens */
+    @media (max-width: 640px) {
+      .robot-container {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header" role="banner">
+    <span class="text-xl" aria-label="AI Chatbot">PinkBot</span>
+    <div class="action-buttons">
+      <button aria-label="Toggle Dark Mode" onclick="toggleDarkMode()">Dark Mode</button>
+      <button aria-label="Clear Chat" onclick="clearChat()">Clear Chat</button>
+      <button aria-label="Help" onclick="showHelp()">Help</button>
+    </div>
+  </header>
+
+  <main class="chat-container" role="main" aria-label="Chat Interface">
+    <div id="chat-container" class="chat-messages" aria-live="polite">
+      <div class="message bot" id="initial-message">
+        Hello! How can I assist you today?
+      </div>
+    </div>
+    <div class="input-container">
+      <input id="message-input" type="text" placeholder="Type a message..." aria-label="Type your message" onkeydown="if(event.key === 'Enter') sendMessage()" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+    <div class="robot-container" id="robot-container" role="button" tabindex="0" aria-label="Robot Interactive Area" onclick="changeRobotSpeech()" onkeypress="if(event.key === 'Enter') changeRobotSpeech()">
+      <img src="https://cdn-icons-png.flaticon.com/512/4712/4712027.png" class="robot-image" alt="Chatbot Robot">
+      <div class="speech-bubble" id="robot-speech">Hi there!</div>
+    </div>
+  </main>
+
+  <footer role="contentinfo">
+    &copy; 2025 PinkBot. All rights reserved. |
+    <a href="#" onclick="alert('Privacy Policy will be displayed here.')" aria-label="Privacy Policy">Privacy Policy</a> |
+    <a href="#" onclick="alert('Terms of Service will be displayed here.')" aria-label="Terms of Service">Terms of Service</a>
+  </footer>
+
+  <script>
+    
+    // Array of phrases for the robot speech features
+    const botPhrases = [
+      "Hi there!",
+      "How can I help?",
+      "What do you need?",
+      "Hello, friend!",
+      "Ready to chat!"
+    ];
+
+    // Variable to store the last message for retry
+    let lastMessage = "";
+
+    // Save chat history to localStorage
+    function saveChatHistory() {
+      localStorage.setItem('chatHistory', document.getElementById('chat-container').innerHTML);
+    }
+
+    // Create a timestamp element for messages
+    function createTimestamp() {
+      const timestamp = document.createElement('span');
+      timestamp.className = 'timestamp';
+      const now = new Date();
+      timestamp.textContent = now.toLocaleTimeString();
+      return timestamp;
+    }
+
+    // Scroll chat container to bottom
+    function scrollToBottom() {
+      const chatContainer = document.getElementById('chat-container');
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // Show typing indicator
+    function showTypingIndicator() {
+      const chatContainer = document.getElementById('chat-container');
+      const typingIndicator = document.createElement('div');
+      typingIndicator.className = 'message bot typing';
+      typingIndicator.id = 'typing-indicator';
+      typingIndicator.textContent = 'Bot is typing';
+      chatContainer.appendChild(typingIndicator);
+      scrollToBottom();
+    }
+
+    // Remove typing indicator if it exists
+    function removeTypingIndicator() {
+      const indicator = document.getElementById('typing-indicator');
+      if (indicator) indicator.remove();
+    }
+
+    // Function to send chat message to the backend
+    function sendChatMessage(message) {
+      showTypingIndicator();
+      axios.post('http://127.0.0.1:5000/chat',{"question": message, "session_id": "user1237"})
+      .then(response => {
+        console.log(response)
+        removeTypingIndicator();
+        const botResponse = response.data.answer;
+        const botMessage = document.createElement('div');
+        botMessage.className = 'message bot';
+        botMessage.textContent = botResponse;
+        botMessage.appendChild(createTimestamp());
+        document.getElementById('chat-container').appendChild(botMessage);
+        scrollToBottom();
+        saveChatHistory();
+      })
+      .catch(error => {
+        removeTypingIndicator();
+        console.error('Error from backend:', error);
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'message bot';
+        errorMessage.textContent = 'Sorry, there was an error processing your message.';
+        errorMessage.appendChild(createTimestamp());
+        // Create a retry button
+        const retryButton = document.createElement('button');
+        retryButton.textContent = 'Retry';
+        retryButton.style.marginLeft = '10px';
+        retryButton.onclick = () => {
+          errorMessage.remove();
+          sendChatMessage(message);
+        };
+        errorMessage.appendChild(retryButton);
+        document.getElementById('chat-container').appendChild(errorMessage);
+        scrollToBottom();
+      });
+    }
+
+    // Send a message from the input field
+    function sendMessage() {
+      const input = document.getElementById('message-input');
+      const chatContainer = document.getElementById('chat-container');
+      const message = input.value.trim();
+      if (message === '') return;
+
+      // Display user message with timestamp
+      const userMessage = document.createElement('div');
+      userMessage.className = 'message user';
+      userMessage.textContent = message;
+      userMessage.appendChild(createTimestamp());
+      chatContainer.appendChild(userMessage);
+      saveChatHistory();
+      input.value = '';
+      lastMessage = message; // Store for retry
+
+      sendChatMessage(message);
+    }
+
+    // Toggle dark mode and save the user's preference
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      localStorage.setItem('dark-mode', document.body.classList.contains('dark-mode'));
+    }
+
+    // Clear chat messages and remove saved history
+    function clearChat() {
+      document.getElementById('chat-container').innerHTML = '';
+      localStorage.removeItem('chatHistory');
+    }
+
+    // Change the robot's speech using a random phrase
+    function changeRobotSpeech() {
+      const speechBubble = document.getElementById('robot-speech');
+      const randomPhrase = botPhrases[Math.floor(Math.random() * botPhrases.length)];
+      speechBubble.textContent = randomPhrase;
+    }
+
+    // Show help/instructions to the user
+    function showHelp() {
+      alert("Welcome to the PinkBot!\n\nType your message and press 'Send' or hit Enter.\nUse 'Dark Mode' for a better viewing experience.\nClick 'Clear Chat' to reset the conversation.\nIf an error occurs, click 'Retry' to resend your message.");
+    }
+
+    // On DOMContentLoaded, load dark mode preference and chat history; update initial timestamp
+    document.addEventListener('DOMContentLoaded', () => {
+      if (localStorage.getItem('dark-mode') === 'true' || window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark-mode');  
+      }
+      const savedChat = localStorage.getItem('chatHistory');
+      if (savedChat) {
+        document.getElementById('chat-container').innerHTML = savedChat;
+      } else {
+        // Add initial timestamp for the welcome message if not present
+        const initialMsg = document.getElementById('initial-message');
+        initialMsg.appendChild(createTimestamp());
+      }
+    });
+
+    // Update robot speech periodically
+    setInterval(changeRobotSpeech, 5000);
+  </script>
+</body>
+</html>

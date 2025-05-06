@@ -1,0 +1,4 @@
+/server/chroma_db
+/server/rag_env
+/server/.env
+.DS_Store
